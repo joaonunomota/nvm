@@ -1,0 +1,32 @@
+#!/bin/sh
+
+set -e
+
+die () {
+  unset -f nvm_ls_remote nvm_ls_remote_iojs
+  >&2 echo "$@"
+  exit 1
+}
+
+\. ../../../nvm.sh
+\. ../../common.sh
+
+rm -rf .nvmrc
+echo '' > .nvmrc
+chmod 0 .nvmrc
+
+REMOTE="$PWD/mocks/nvm_ls_remote.txt"
+nvm_ls_remote() {
+  cat "$REMOTE"
+}
+REMOTE_IOJS="$PWD/mocks/nvm_ls_remote_iojs.txt"
+nvm_ls_remote_iojs() {
+  cat "$REMOTE_IOJS"
+}
+
+make_fake_node lts
+
+{
+  (nvm install --save --lts) &&
+  die "\`nvm install --save --lts\` did not fail with invalid permissions"
+} || echo "\`nvm install --save --lts\` failed successfully"

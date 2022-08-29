@@ -2880,6 +2880,7 @@ nvm() {
         nvm_echo '    --no-progress                             Disable the progress bar on any downloads'
         nvm_echo '    --alias=<name>                            After installing, set the alias specified to the version specified. (same as: nvm alias <name> <version>)'
         nvm_echo '    --default                                 After installing, set default alias to the version specified. (same as: nvm alias default <version>)'
+        nvm_echo '    --save                                    After installing, write the specified version to .nvmrc'
         nvm_echo '  nvm uninstall <version>                     Uninstall a version'
         nvm_echo '  nvm uninstall --lts                         Uninstall using automatic LTS (long-term support) alias `lts/*`, if available.'
         nvm_echo '  nvm uninstall --lts=<LTS name>              Uninstall using automatic alias for provided LTS line, if available.'
@@ -2888,6 +2889,7 @@ nvm() {
         nvm_echo '    --silent                                  Silences stdout/stderr output'
         nvm_echo '    --lts                                     Uses automatic LTS (long-term support) alias `lts/*`, if available.'
         nvm_echo '    --lts=<LTS name>                          Uses automatic alias for provided LTS line, if available.'
+        nvm_echo '    --save                                    Writes the specified version to .nvmrc.'
         nvm_echo '  nvm exec [<version>] [<command>]            Run <command> on <version>. Uses .nvmrc if available and version is omitted.'
         nvm_echo '   The following optional arguments, if provided, must appear directly after `nvm exec`:'
         nvm_echo '    --silent                                  Silences stdout/stderr output'
@@ -3100,6 +3102,8 @@ nvm() {
       local ALIAS
       local NVM_UPGRADE_NPM
       NVM_UPGRADE_NPM=0
+      local NVM_WRITE_TO_NVMRC
+      NVM_WRITE_TO_NVMRC=0
 
       local PROVIDED_REINSTALL_PACKAGES_FROM
       local REINSTALL_PACKAGES_FROM
@@ -3196,6 +3200,10 @@ nvm() {
           ;;
           --skip-default-packages)
             SKIP_DEFAULT_PACKAGES=true
+            shift
+          ;;
+          --save)
+            NVM_WRITE_TO_NVMRC=1
             shift
           ;;
           *)
@@ -3574,6 +3582,8 @@ nvm() {
       local NVM_LTS
       local IS_VERSION_FROM_NVMRC
       IS_VERSION_FROM_NVMRC=0
+      local NVM_WRITE_TO_NVMRC
+      NVM_WRITE_TO_NVMRC=0
 
       while [ $# -ne 0 ]; do
         case "$1" in
@@ -3585,6 +3595,7 @@ nvm() {
           --) ;;
           --lts) NVM_LTS='*' ;;
           --lts=*) NVM_LTS="${1##--lts=}" ;;
+          --save) NVM_WRITE_TO_NVMRC=1 ;;
           --*) ;;
           *)
             if [ -n "${1-}" ]; then
@@ -3617,16 +3628,24 @@ nvm() {
         >&2 nvm --help
         return 127
       fi
-
+      local NVMRC_SAVE_TEXT
+      NVMRC_SAVE_TEXT=''
+      if [ $NVM_WRITE_TO_NVMRC -eq 1 ] && [ "${VERSION}" != '∞' ] && [ "${VERSION}" != 'N/A' ]; then
+        echo "${VERSION}" | tee "${PWD}"/.nvmrc > /dev/null || {
+          nvm_err "Warning: Unable to write version \`${VERSION}\` to .nvmrc"
+          exit 3
+        }
+        NVMRC_SAVE_TEXT=' (saved to .nvmrc)'
+      fi
       if [ "_${VERSION}" = '_system' ]; then
         if nvm_has_system_node && nvm deactivate "${NVM_SILENT_ARG-}" >/dev/null 2>&1; then
           if [ "${NVM_SILENT:-0}" -ne 1 ]; then
-            nvm_echo "Now using system version of node: $(node -v 2>/dev/null)$(nvm_print_npm_version)"
+            nvm_echo "Now using system version of node: $(node -v 2>/dev/null)$(nvm_print_npm_version)${NVMRC_SAVE_TEXT}"
           fi
           return
         elif nvm_has_system_iojs && nvm deactivate "${NVM_SILENT_ARG-}" >/dev/null 2>&1; then
           if [ "${NVM_SILENT:-0}" -ne 1 ]; then
-            nvm_echo "Now using system version of io.js: $(iojs --version 2>/dev/null)$(nvm_print_npm_version)"
+            nvm_echo "Now using system version of io.js: $(iojs --version 2>/dev/null)$(nvm_print_npm_version)${NVMRC_SAVE_TEXT}"
           fi
           return
         elif [ "${NVM_SILENT:-0}" -ne 1 ]; then
@@ -3675,9 +3694,9 @@ nvm() {
       NVM_USE_OUTPUT=''
       if [ "${NVM_SILENT:-0}" -ne 1 ]; then
         if nvm_is_iojs_version "${VERSION}"; then
-          NVM_USE_OUTPUT="Now using io.js $(nvm_strip_iojs_prefix "${VERSION}")$(nvm_print_npm_version)"
+          NVM_USE_OUTPUT="Now using io.js $(nvm_strip_iojs_prefix "${VERSION}")$(nvm_print_npm_version)${NVMRC_SAVE_TEXT}"
         else
-          NVM_USE_OUTPUT="Now using node ${VERSION}$(nvm_print_npm_version)"
+          NVM_USE_OUTPUT="Now using node ${VERSION}$(nvm_print_npm_version)${NVMRC_SAVE_TEXT}"
         fi
       fi
       if [ "_${VERSION}" != "_system" ]; then

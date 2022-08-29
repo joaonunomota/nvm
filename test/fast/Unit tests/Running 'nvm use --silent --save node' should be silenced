@@ -1,0 +1,14 @@
+#!/bin/sh
+
+set -e
+
+die () { echo "$@" ; exit 1; }
+
+\. ../../../nvm.sh
+
+rm -rf .nvmrc;
+OUTPUT="$(nvm use --silent --save node || die "\`nvm use --silent --save node\` failed")"
+EXPECTED_OUTPUT=''
+
+[ "_${OUTPUT}" = "_${EXPECTED_OUTPUT}" ] \
+  || die "\`nvm use --silent --save node\` was not silenced; got '${OUTPUT}'"

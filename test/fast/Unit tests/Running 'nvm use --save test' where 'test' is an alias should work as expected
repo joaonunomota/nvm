@@ -1,0 +1,19 @@
+#!/bin/sh
+
+set -e
+
+die () { echo "$@" ; exit 1; }
+
+\. ../../../nvm.sh
+
+rm -rf .nvmrc;
+
+nvm alias test node
+nvm use test --save || die "\`nvm use test --save\` failed"
+OUTPUT="$(cat .nvmrc)"
+EXPECTED_OUTPUT=$(nvm_ls_current)
+
+[ "_${OUTPUT}" = "_${EXPECTED_OUTPUT}" ] \
+  || die "\`nvm use --save test\`+ \`cat .nvmrc\` did not output '${EXPECTED_OUTPUT}'; got '${OUTPUT}'"
+
+nvm unalias test

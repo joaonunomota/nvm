@@ -1,0 +1,35 @@
+#!/bin/sh
+
+set -e
+
+die () {
+  unset -f nvm_ls_remote nvm_ls_remote_iojs
+  >&2 echo "$@"
+  exit 1
+}
+
+\. ../../../nvm.sh
+
+REMOTE="$PWD/mocks/nvm_ls_remote.txt"
+nvm_ls_remote() {
+  cat "$REMOTE"
+}
+REMOTE_IOJS="$PWD/mocks/nvm_ls_remote_iojs.txt"
+nvm_ls_remote_iojs() {
+  cat "$REMOTE_IOJS"
+}
+
+make_fake_node lts
+
+(cd ..
+rm -rf .nvmrc
+nvm install --save --lts)
+
+nvm install --save
+OUTPUT="$(cat .nvmrc)"
+EXPECTED_OUTPUT="$(nvm_ls_current)"
+
+[ "_${OUTPUT}" = "_${EXPECTED_OUTPUT}" ] \
+  || die "\`nvm use use --save\`+ \`cat .nvmrc\` did not output '${EXPECTED_OUTPUT}'; got '${OUTPUT}'"
+
+rm -rf ../.nvmrc .nvmrc
